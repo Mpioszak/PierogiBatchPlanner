@@ -1,0 +1,414 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<meta name="claude:viewport-fit-sides" content="cover">
+<title>Pierogi Batch Planner</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=Source+Code+Pro:wght@400;500;600&family=Source+Sans+3:wght@400;500;600&display=swap">
+<style>
+/* Layout: a prep sheet — batch controls across the top, then four stations (dough, filling, line, freezer) as a two-up grid that stacks under 820px */
+:root{
+  --bg:#F0F0EC; --surface:#FAFAF7; --sunk:#E4E4DE;
+  --ink:#1D1E1A; --muted:#5F6159; --line:#CDCDC5; --line-strong:#A3A49A;
+  --accent:#8C2F39; --accent-soft:#F0DEDF; --steel:#44636F; --good:#3F6B43;
+  --font-display:"Archivo",system-ui,sans-serif;
+  --font-body:"Source Sans 3",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --font-mono:"Source Code Pro",ui-monospace,"SF Mono",Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#15161A; --surface:#1E2024; --sunk:#282B30;
+    --ink:#E8E7E1; --muted:#9A9C95; --line:#33363B; --line-strong:#50545A;
+    --accent:#DD8089; --accent-soft:#33222A; --steel:#8FB2C0; --good:#86B98B;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#15161A; --surface:#1E2024; --sunk:#282B30;
+  --ink:#E8E7E1; --muted:#9A9C95; --line:#33363B; --line-strong:#50545A;
+  --accent:#DD8089; --accent-soft:#33222A; --steel:#8FB2C0; --good:#86B98B;
+  color-scheme:dark;
+}
+
+*{box-sizing:border-box}
+body{
+  background:var(--bg); color:var(--ink);
+  font-family:var(--font-body); font-size:15px; line-height:1.55;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{
+  max-width:1080px; margin:0 auto;
+  padding-left:max(16px,env(safe-area-inset-left,0px));
+  padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-block:32px 56px;
+}
+
+.masthead{display:flex; flex-wrap:wrap; gap:16px; align-items:flex-end; justify-content:space-between;
+  border-bottom:3px solid var(--ink); padding-bottom:14px; margin-bottom:24px}
+.eyebrow{font-family:var(--font-mono); font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--accent); margin:0 0 6px}
+h1{font-family:var(--font-display); font-weight:800; font-size:clamp(30px,6vw,46px); line-height:.98;
+  letter-spacing:-.02em; margin:0; text-wrap:balance; text-transform:uppercase}
+.standfirst{margin:14px 0 0; color:var(--muted); max-width:66ch}
+
+/* batch bar */
+.batchbar{background:var(--surface); border:1px solid var(--line-strong); border-radius:3px;
+  padding:18px; margin-bottom:22px; display:grid; grid-template-columns:repeat(4,1fr); gap:16px; align-items:end}
+@media (max-width:760px){.batchbar{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:420px){.batchbar{grid-template-columns:1fr}}
+
+.field{display:flex; flex-direction:column; gap:6px; min-width:0}
+label{font-family:var(--font-mono); font-size:10.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted)}
+select,input[type=number]{font-family:var(--font-body); font-size:15px; color:var(--ink);
+  background:var(--sunk); border:1px solid var(--line-strong); border-radius:2px; padding:9px 10px; width:100%; min-width:0}
+input[type=number]{font-family:var(--font-mono); font-variant-numeric:tabular-nums}
+select:focus-visible,input:focus-visible,button:focus-visible{outline:2px solid var(--accent); outline-offset:1px}
+
+.presets{display:flex; flex-wrap:wrap; gap:7px; margin:-8px 0 22px}
+.presets button{font-family:var(--font-mono); font-size:11.5px; letter-spacing:.06em; color:var(--muted);
+  background:transparent; border:1px solid var(--line-strong); border-radius:2px; padding:5px 11px; cursor:pointer}
+.presets button:hover{border-color:var(--accent); color:var(--accent)}
+
+/* stations */
+.stations{display:grid; grid-template-columns:1fr 1fr; gap:20px; align-items:start}
+@media (max-width:820px){.stations{grid-template-columns:1fr}}
+.station{background:var(--surface); border:1px solid var(--line); border-radius:3px; overflow:hidden}
+.station > header{display:flex; align-items:baseline; gap:10px; padding:13px 18px;
+  border-bottom:1px solid var(--line); background:var(--sunk)}
+.station h2{font-family:var(--font-display); font-weight:700; font-size:15px; letter-spacing:.02em;
+  text-transform:uppercase; margin:0}
+.station .pl{font-family:var(--font-body); font-size:13px; color:var(--muted); font-style:italic}
+.station .body{padding:16px 18px 18px}
+.station.wide{grid-column:1/-1}
+
+table{border-collapse:collapse; width:100%; font-size:14px}
+.tablewrap{overflow-x:auto}
+th,td{text-align:left; padding:8px 10px 8px 0; border-bottom:1px solid var(--line); vertical-align:baseline}
+th{font-family:var(--font-mono); font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); font-weight:500; white-space:nowrap}
+td.qty,th.qty{text-align:right; padding-right:0; font-family:var(--font-mono); font-variant-numeric:tabular-nums; white-space:nowrap; font-weight:500}
+td.sub{color:var(--muted); font-size:12.5px; white-space:nowrap}
+tbody tr:last-child td{border-bottom:0}
+tr.total td{border-top:2px solid var(--line-strong); border-bottom:0; font-weight:600; padding-top:10px}
+
+dl{margin:0; display:grid; grid-template-columns:1fr auto; gap:0}
+dt,dd{margin:0; padding:9px 0; border-bottom:1px dotted var(--line); font-size:14px; min-width:0}
+dt{color:var(--muted); padding-right:12px}
+dd{font-family:var(--font-mono); font-variant-numeric:tabular-nums; text-align:right; font-weight:500}
+dl > :nth-last-child(1),dl > :nth-last-child(2){border-bottom:0}
+
+.tiles{display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:var(--line); border:1px solid var(--line); border-radius:3px; overflow:hidden; margin-bottom:16px}
+@media (max-width:520px){.tiles{grid-template-columns:1fr 1fr}}
+.tile{background:var(--surface); padding:13px 14px}
+.tile .k{font-family:var(--font-mono); font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); display:block; margin-bottom:3px}
+.tile .n{font-family:var(--font-display); font-weight:700; font-size:24px; font-variant-numeric:tabular-nums; line-height:1.1; display:block}
+.tile .u{font-size:12.5px; color:var(--muted)}
+
+.note{border-left:3px solid var(--steel); padding:2px 0 2px 13px; font-size:13.5px; color:var(--muted); margin:16px 0 0; max-width:68ch}
+.ratio{font-family:var(--font-mono); font-size:13px; color:var(--accent); background:var(--accent-soft);
+  display:inline-block; padding:4px 9px; border-radius:2px; margin-bottom:14px}
+
+ol.timeline{margin:0; padding:0; list-style:none; counter-reset:step; display:grid; gap:12px}
+ol.timeline li{counter-increment:step; padding-left:38px; position:relative; font-size:14px; max-width:70ch}
+ol.timeline li::before{content:"T−" counter(step); position:absolute; left:0; top:1px;
+  font-family:var(--font-mono); font-size:10.5px; letter-spacing:.04em; color:var(--accent);
+  border:1px solid var(--line-strong); border-radius:2px; padding:1px 4px}
+ol.timeline b{font-weight:600}
+footer{margin-top:32px; padding-top:16px; border-top:1px solid var(--line); font-size:12.5px; color:var(--muted); max-width:72ch}
+</style>
+
+<div class="wrap">
+  <header class="masthead">
+    <div>
+      <p class="eyebrow">Production worksheet</p>
+      <h1>Pierogi Batch Planner</h1>
+    </div>
+  </header>
+  <p class="standfirst">Work backward from how many pierogi have to come off the table. Flour, water, filling, sheet pans, crew and clock — scaled from a dozen for dinner up to a church hall morning.</p>
+
+  <div class="batchbar">
+    <div class="field">
+      <label for="count">Pierogi to make</label>
+      <input type="number" id="count" min="6" step="12" value="400">
+    </div>
+    <div class="field">
+      <label for="size">Size</label>
+      <select id="size"></select>
+    </div>
+    <div class="field">
+      <label for="filling">Filling</label>
+      <select id="filling"></select>
+    </div>
+    <div class="field">
+      <label for="crew">Crew on the line</label>
+      <input type="number" id="crew" min="1" max="24" step="1" value="6">
+    </div>
+  </div>
+
+  <div class="presets" id="presets">
+    <button type="button" data-n="12">A dozen</button>
+    <button type="button" data-n="60">Sunday dinner · 60</button>
+    <button type="button" data-n="144">12 dozen</button>
+    <button type="button" data-n="400">Church hall · 400</button>
+    <button type="button" data-n="1200">Fundraiser · 100 dozen</button>
+  </div>
+
+  <div class="stations">
+
+    <section class="station wide">
+      <header><h2>The batch</h2><span class="pl">partia</span></header>
+      <div class="body">
+        <div class="tiles" id="tiles"></div>
+        <span class="ratio" id="ratio"></span>
+        <p class="note" id="batchnote"></p>
+      </div>
+    </section>
+
+    <section class="station">
+      <header><h2>Dough</h2><span class="pl">ciasto</span></header>
+      <div class="body">
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th scope="col">Ingredient</th><th scope="col" class="qty">Weight</th></tr></thead>
+            <tbody id="doughtable"></tbody>
+          </table>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:16px">
+          <div class="field"><label for="hyd">Hydration %</label><input type="number" id="hyd" min="40" max="70" step="1" value="54"></div>
+          <div class="field"><label for="trim">Trim allowance %</label><input type="number" id="trim" min="0" max="25" step="1" value="8"></div>
+        </div>
+        <p class="note">Hot water, not cold — it sets the starch enough to stop the dough snapping back while you roll. The trim allowance covers scraps from cutting rounds; re-roll them once, then stop, because the third pass goes tough and those are the pierogi that split in the pot.</p>
+      </div>
+    </section>
+
+    <section class="station">
+      <header><h2>Filling</h2><span class="pl" id="fillpl"></span></header>
+      <div class="body">
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th scope="col">Ingredient</th><th scope="col">Note</th><th scope="col" class="qty">Weight</th></tr></thead>
+            <tbody id="filltable"></tbody>
+          </table>
+        </div>
+        <p class="note" id="fillnote"></p>
+      </div>
+    </section>
+
+    <section class="station">
+      <header><h2>The line</h2><span class="pl">taśma</span></header>
+      <div class="body">
+        <dl id="linedl"></dl>
+        <p class="note" id="linenote"></p>
+      </div>
+    </section>
+
+    <section class="station">
+      <header><h2>Freezer &amp; pot</h2><span class="pl">mroźnia</span></header>
+      <div class="body">
+        <dl id="freezedl"></dl>
+        <p class="note">Freeze them apart on floured sheet pans until hard, two hours or so, then bag. Bagged soft, they weld into a brick. Boil from frozen in heavily salted water, in batches small enough that the water never stops moving; they are done a minute or two after they float.</p>
+      </div>
+    </section>
+
+    <section class="station wide">
+      <header><h2>Running order</h2><span class="pl">kolejność</span></header>
+      <div class="body">
+        <ol class="timeline" id="timeline"></ol>
+      </div>
+    </section>
+
+  </div>
+
+  <footer>Dough and filling figures follow standard Polish home and parish-hall proportions and are per-piece, so they scale cleanly. Output rates cover assembly only — rolling, filling, sealing and racking — and assume the filling was made the day before and the dough is resting when the crew arrives. A drilled parish line beats these numbers; a kitchen doing it for the first time will not come close. Weigh the dough for the first dozen to calibrate, then work by eye.</footer>
+</div>
+
+<script>
+var SIZES = {
+  small:    {label:"Małe — 6.5 cm / 2½ in round", dough:14, fill:16, perPan:64, perBag:32, perPot:40},
+  standard: {label:"Standard — 7.5 cm / 3 in round", dough:20, fill:24, perPan:48, perBag:24, perPot:30},
+  large:    {label:"Duże — 9 cm / 3½ in round", dough:28, fill:34, perPan:35, perBag:18, perPot:22}
+};
+
+var FILLINGS = {
+  ruskie: {label:"Ruskie — potato & twaróg", pl:"ruskie",
+    rows:[
+      ["Potatoes, peeled and boiled", 580, "buy 725 g unpeeled"],
+      ["Twaróg, półtłusty farmer cheese", 300, "press if wet"],
+      ["Onion, raw", 150, "fries to ~95 g"],
+      ["Butter or lard, for the onion", 30, ""],
+      ["Salt", 10, ""],
+      ["Black pepper, ground", 2, ""]
+    ],
+    note:"Rice the potatoes while hot and fold the cheese in warm so it melts smooth, then cool the filling right down before you fill a single round. Warm filling steams the dough from the inside and the seams let go in the pot."},
+  kapusta: {label:"Kapusta i grzyby — kraut & mushroom", pl:"kapusta i grzyby",
+    rows:[
+      ["Sauerkraut, drained and chopped", 700, "about 900 g from the bag"],
+      ["Dried borowiki or podgrzybki", 40, "rehydrates to ~160 g"],
+      ["Onion, raw", 150, "fries to ~95 g"],
+      ["Butter or oil", 30, ""],
+      ["Black pepper and a bay leaf", 3, ""]
+    ],
+    note:"The Wigilia filling. Squeeze the kraut hard and save the soaking water from the mushrooms — it goes back in at the end and cooks down to nothing, which is where the flavour comes from. Taste before salting; the kraut usually brings enough."},
+  mieso: {label:"Mięso — braised meat", pl:"mięso",
+    rows:[
+      ["Cooked meat, ground or minced", 700, "from ~1 kg raw shoulder"],
+      ["Onion, raw", 200, "fries to ~125 g"],
+      ["Rendered fat or butter", 40, ""],
+      ["Breadcrumbs or soaked bread", 60, "binds it"],
+      ["Stock, to loosen", 60, ""],
+      ["Salt, pepper, marjoram", 12, ""]
+    ],
+    note:"Traditionally this is Sunday's leftover braise put through a grinder, not meat cooked for the purpose. Grind it twice if you want the texture to hold together under a fork, and keep it loose with stock — a dry meat filling tastes like sawdust however good the braise was."},
+  serowe: {label:"Serowe na słodko — sweet cheese", pl:"serowe",
+    rows:[
+      ["Twaróg, pressed dry", 800, "sieve it smooth"],
+      ["Sugar", 90, ""],
+      ["Egg yolks", 36, "about 2"],
+      ["Semolina or potato starch", 40, "to bind"],
+      ["Vanilla sugar, lemon zest", 10, ""]
+    ],
+    note:"Wet cheese is the whole problem here — sieve it, then let it drain in cloth if it still slumps. The semolina takes up what is left and keeps the filling from boiling out through the seam."},
+  jagodowe: {label:"Jagodowe — blueberry", pl:"jagodowe",
+    rows:[
+      ["Blueberries, whole", 900, "jagody, not cultivated if you can get them"],
+      ["Sugar", 90, ""],
+      ["Potato starch", 15, "dusted on at filling time"]
+    ],
+    note:"Fill these one at a time and seal them hard; berries burst and the juice finds any weak seam. Dust the starch on just before closing, not into the bowl, or the berries weep and the dough goes slack. Sour cream and sugar at the table, nothing else."}
+};
+
+var state = {count:400, size:"standard", filling:"ruskie", crew:6, hyd:54, trim:8, salt:1.4, fat:3};
+
+function $(id){ return document.getElementById(id); }
+function fmt(n, dp){
+  if (!isFinite(n)) return "—";
+  var d = dp === undefined ? (n < 10 ? 1 : 0) : dp;
+  return n.toLocaleString("en-US",{minimumFractionDigits:d, maximumFractionDigits:d});
+}
+function wt(g){
+  if (g >= 1000) return fmt(g/1000, g/1000 < 10 ? 2 : 1) + " kg";
+  return fmt(g, g < 10 ? 1 : 0) + " g";
+}
+function lbs(g){ return fmt(g/453.592, 1) + " lb"; }
+function hrs(h){
+  if (h < 1) return Math.round(h*60) + " min";
+  var whole = Math.floor(h), m = Math.round((h - whole)*60);
+  if (m >= 60){ whole += 1; m = 0; }
+  return whole + " hr" + (m ? " " + m + " min" : "");
+}
+// Pierogi per person-hour, assembly only — rolling, cutting, filling, sealing, racking.
+// Rises with crew size because the work splits into stations, then flattens.
+function rate(crew){
+  if (crew <= 1) return 45;
+  if (crew <= 2) return 55;
+  if (crew <= 5) return 65;
+  if (crew <= 9) return 70;
+  return 75;
+}
+
+function compute(){
+  var s = SIZES[state.size];
+  var n = state.count;
+  var doughNeeded = n * s.dough * (1 + state.trim/100);
+  var mult = 1 + state.hyd/100 + state.salt/100 + state.fat/100;
+  var flour = doughNeeded / mult;
+  var fillNeeded = n * s.fill;
+  var perHour = rate(state.crew) * state.crew;
+  return {
+    s:s, n:n,
+    doughNeeded:doughNeeded, flour:flour,
+    water:flour * state.hyd/100, dsalt:flour * state.salt/100, fat:flour * state.fat/100,
+    bench:flour * 0.04,
+    fillNeeded:fillNeeded,
+    rawTotal:doughNeeded + fillNeeded,
+    pans:Math.ceil(n / s.perPan),
+    bags:Math.ceil(n / s.perBag),
+    potLoad:s.perPot,
+    potHour:Math.round(s.perPot * 10),
+    boilWater:Math.ceil(n / s.perPot) * 5,
+    perHour:perHour,
+    lineHours:n / perHour,
+    personHours:n / rate(state.crew)
+  };
+}
+
+function render(){
+  var r = compute(), f = FILLINGS[state.filling];
+
+  $("tiles").innerHTML =
+    tile("Pierogi", fmt(r.n,0), (r.n/12).toFixed(r.n % 12 ? 1 : 0) + " dozen") +
+    tile("Flour", wt(r.flour), lbs(r.flour)) +
+    tile("Filling", wt(r.fillNeeded), lbs(r.fillNeeded)) +
+    tile("Raw weight", wt(r.rawTotal), lbs(r.rawTotal)) +
+    tile("Sheet pans", fmt(r.pans,0), "full sheets, single layer") +
+    tile("On the line", hrs(r.lineHours), state.crew + " people");
+
+  var ratio = r.s.fill / r.s.dough;
+  $("ratio").textContent = "Dough to filling, 1 : " + ratio.toFixed(2) + " by weight — " + r.s.dough + " g of dough and " + r.s.fill + " g of filling per piece";
+  $("batchnote").textContent = "A finished raw pierog weighs about " + (r.s.dough + r.s.fill) + " g, so this batch comes to " + wt(r.rawTotal) + " going into the freezer. Buy flour to " + wt(r.flour + r.bench) + " — the extra " + wt(r.bench) + " is what ends up on the table and the rolling pin.";
+
+  $("doughtable").innerHTML =
+    row("Flour, all-purpose", wt(r.flour)) +
+    row("Water, hot from the tap", wt(r.water)) +
+    row("Salt", wt(r.dsalt)) +
+    row("Oil, butter or lard", wt(r.fat)) +
+    row("Bench flour for rolling", wt(r.bench)) +
+    "<tr class='total'><td>Dough off the bench</td><td class='qty'>" + wt(r.doughNeeded) + "</td></tr>";
+
+  var scale = r.fillNeeded / 1000;
+  $("fillpl").textContent = f.pl;
+  $("filltable").innerHTML = f.rows.map(function(x){
+    return "<tr><td>" + x[0] + "</td><td class='sub'>" + (x[2] || "") + "</td><td class='qty'>" + wt(x[1]*scale) + "</td></tr>";
+  }).join("") + "<tr class='total'><td colspan='2'>Finished filling</td><td class='qty'>" + wt(r.fillNeeded) + "</td></tr>";
+  $("fillnote").textContent = f.note;
+
+  $("linedl").innerHTML =
+    dt("Crew", state.crew + (state.crew === 1 ? " person" : " people")) +
+    dt("Output", fmt(r.perHour,0) + " / hour") +
+    dt("Time on the line", hrs(r.lineHours)) +
+    dt("Same job, one pair of hands", hrs(r.personHours));
+  $("linenote").textContent = state.crew >= 4
+    ? "Split the work by station rather than having everyone make whole pierogi: one rolling and cutting, one or two spooning filling, the rest sealing and racking. Sealing is the bottleneck, so staff it heaviest. Keep cut rounds under a damp towel — a round that dries for five minutes will not seal."
+    : "With this few hands you are making whole pierogi one at a time rather than running a line, so figure the lower rate. Roll and cut one sheet's worth, fill and seal it, then roll the next, so nothing sits out drying.";
+
+  $("freezedl").innerHTML =
+    dt("Sheet pans, single layer", fmt(r.pans,0) + " full sheets") +
+    dt("Freezer bags, once hard", fmt(r.bags,0) + " gallon bags") +
+    dt("Pot load", r.potLoad + " at a time") +
+    dt("Boiling throughput", "~" + fmt(r.potHour,0) + " / hour per pot") +
+    dt("Water to boil, if serving fresh", fmt(r.boilWater,0) + " L total");
+
+  var fillKg = (r.fillNeeded/1000);
+  $("timeline").innerHTML = [
+    "<b>Day before.</b> Make the filling and cool it completely — " + wt(r.fillNeeded) + " of it, which needs real refrigerator space, not a corner of a shelf. Cooked potato and cheese fillings are better on day two anyway.",
+    "<b>Two hours out.</b> Mix the dough: " + wt(r.flour) + " flour against " + wt(r.water) + " hot water. Knead until smooth, cover, and let it rest at least 30 minutes. Dough made cold and rushed fights the rolling pin all morning.",
+    "<b>Set up.</b> Flour the tables, portion the filling into bowls at each sealing seat, set out " + fmt(r.pans,0) + " floured sheet pans, and put damp towels at every station.",
+    "<b>Run the line.</b> " + hrs(r.lineHours) + " at " + fmt(r.perHour,0) + " an hour with " + state.crew + ". Rack as you go, in a single layer, and get full pans into the freezer rather than stacking them on the table.",
+    "<b>Freeze, then bag.</b> Two hours hard-frozen, then into " + fmt(r.bags,0) + " bags with the date and the filling written on them. Nobody remembers which bag is kapusta in February."
+  ].map(function(t){ return "<li>" + t + "</li>"; }).join("");
+  void fillKg;
+}
+
+function tile(k,n,u){ return "<div class='tile'><span class='k'>" + k + "</span><span class='n'>" + n + "</span><span class='u'>" + u + "</span></div>"; }
+function row(a,b){ return "<tr><td>" + a + "</td><td class='qty'>" + b + "</td></tr>"; }
+function dt(a,b){ return "<dt>" + a + "</dt><dd>" + b + "</dd>"; }
+
+$("size").innerHTML = Object.keys(SIZES).map(function(k){
+  return "<option value='" + k + "'" + (k === state.size ? " selected" : "") + ">" + SIZES[k].label + "</option>";
+}).join("");
+$("filling").innerHTML = Object.keys(FILLINGS).map(function(k){
+  return "<option value='" + k + "'>" + FILLINGS[k].label + "</option>";
+}).join("");
+
+$("count").addEventListener("input", function(){ state.count = Math.max(1, parseInt(this.value,10) || 1); render(); });
+$("crew").addEventListener("input", function(){ state.crew = Math.min(24, Math.max(1, parseInt(this.value,10) || 1)); render(); });
+$("hyd").addEventListener("input", function(){ state.hyd = Math.min(70, Math.max(40, parseFloat(this.value) || 54)); render(); });
+$("trim").addEventListener("input", function(){ state.trim = Math.min(25, Math.max(0, parseFloat(this.value) || 0)); render(); });
+$("size").addEventListener("change", function(){ state.size = this.value; render(); });
+$("filling").addEventListener("change", function(){ state.filling = this.value; render(); });
+$("presets").addEventListener("click", function(e){
+  var b = e.target.closest("button"); if (!b) return;
+  state.count = parseInt(b.dataset.n, 10);
+  $("count").value = state.count;
+  render();
+});
+
+render();
+</script>
+
+</body></html>

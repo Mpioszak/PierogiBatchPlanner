@@ -119,7 +119,7 @@ footer{margin-top:32px; padding-top:16px; border-top:1px solid var(--line); font
       <h1>Pierogi Batch Planner</h1>
     </div>
   </header>
-  <p class="standfirst">Work backward from how many pierogi have to come off the table. Flour, water, filling, sheet pans, crew and clock — scaled from a dozen for dinner up to a church hall morning.</p>
+  <p class="standfirst">Work backward from how many pierogi have to come off the table. Flour, water, filling, sheet pans, crew and clock — scaled from a dozen for dinner up to a hall event.</p>
 
   <div class="batchbar">
     <div class="field">
@@ -144,7 +144,7 @@ footer{margin-top:32px; padding-top:16px; border-top:1px solid var(--line); font
     <button type="button" data-n="12">A dozen</button>
     <button type="button" data-n="60">Sunday dinner · 60</button>
     <button type="button" data-n="144">12 dozen</button>
-    <button type="button" data-n="400">Church hall · 400</button>
+    <button type="button" data-n="400">hall · 400</button>
     <button type="button" data-n="1200">Fundraiser · 100 dozen</button>
   </div>
 
@@ -214,7 +214,7 @@ footer{margin-top:32px; padding-top:16px; border-top:1px solid var(--line); font
 
   </div>
 
-  <footer>Dough and filling figures follow standard Polish home and parish-hall proportions and are per-piece, so they scale cleanly. Output rates cover assembly only — rolling, filling, sealing and racking — and assume the filling was made the day before and the dough is resting when the crew arrives. A drilled parish line beats these numbers; a kitchen doing it for the first time will not come close. Weigh the dough for the first dozen to calibrate, then work by eye.</footer>
+  <footer>Dough and filling figures follow standard Polish home and event-hall proportions and are per-piece, so they scale cleanly. Output rates cover assembly only — rolling, filling, sealing and racking — and assume the filling was made the day before and the dough is resting when the crew arrives. A drilled line beats these numbers; a kitchen doing it for the first time will not come close. Weigh the dough for the first dozen to calibrate, then work by eye.</footer>
 </div>
 
 <script>
@@ -269,7 +269,7 @@ var FILLINGS = {
       ["Sugar", 90, ""],
       ["Potato starch", 15, "dusted on at filling time"]
     ],
-    note:"Fill these one at a time and seal them hard; berries burst and the juice finds any weak seam. Dust the starch on just before closing, not into the bowl, or the berries weep and the dough goes slack. Sour cream and sugar at the table, nothing else."}
+    note:"Fill these one at a time and seal them hard; berries burst and the juice finds any weak seam. Dust the starch on just before closing, not into the bowl, or the berries weep and the dough goes slack. Sour cream and sugar at the table."}
 };
 
 var state = {count:400, size:"standard", filling:"ruskie", crew:6, hyd:54, trim:8, salt:1.4, fat:3};
@@ -363,7 +363,7 @@ function render(){
     dt("Time on the line", hrs(r.lineHours)) +
     dt("Same job, one pair of hands", hrs(r.personHours));
   $("linenote").textContent = state.crew >= 4
-    ? "Split the work by station rather than having everyone make whole pierogi: one rolling and cutting, one or two spooning filling, the rest sealing and racking. Sealing is the bottleneck, so staff it heaviest. Keep cut rounds under a damp towel — a round that dries for five minutes will not seal."
+    ? "Split the work by station rather than having everyone make whole pierogi: one rolling and cutting, one or two spooning filling, the rest sealing and racking. Sealing is the bottleneck, so staff it heaviest. Keep cut rounds under a damp towel — a round that dries for six minutes will not seal."
     : "With this few hands you are making whole pierogi one at a time rather than running a line, so figure the lower rate. Roll and cut one sheet's worth, fill and seal it, then roll the next, so nothing sits out drying.";
 
   $("freezedl").innerHTML =
